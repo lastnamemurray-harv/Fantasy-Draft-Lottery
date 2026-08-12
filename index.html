@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#07101c">
+  <title>Fantasy Draft Lottery</title>
+  <style>
+    :root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#f5f7fb;background:#07101c}
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100vh;background:radial-gradient(circle at top,#173a61 0,#0d2035 35%,#07101c 70%);color:#f5f7fb}
+    main{max-width:880px;margin:auto;padding:24px 16px 64px}
+    header{text-align:center;padding:32px 0 20px}
+    h1{font-size:clamp(34px,7vw,64px);line-height:.98;margin:10px 0;letter-spacing:-2.5px}
+    h2{margin:0 0 12px;font-size:20px}
+    h3{margin:18px 0 8px}
+    .muted{color:#a8b8c9;font-size:13px;line-height:1.45}
+    .card{background:rgba(15,29,45,.94);border:1px solid #29445f;border-radius:18px;padding:18px;margin:14px 0}
+    .row{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+    .badge{display:inline-block;border:1px solid #4b6781;border-radius:999px;padding:6px 10px;font-size:12px}
+    .badge.gold{border-color:#9f7e2d;color:#f2cc6d;background:#3a2c0c}
+    .teams{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:9px}
+    .team,.pick{border:1px solid #29435e;background:#091725;border-radius:12px;padding:12px}
+    .pick{display:flex;align-items:center;gap:12px;margin:8px 0}
+    .num{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;background:#e4b63e;color:#111;font-weight:850;flex:none}
+    .hero{text-align:center;font-size:clamp(54px,12vw,86px);font-weight:900;color:#efc75e;padding:8px}
+    .heroTeam{text-align:center;font-size:clamp(24px,6vw,38px);font-weight:850;min-height:48px}
+    .hidden{display:none!important}
+    button{border:0;border-radius:11px;padding:11px 14px;font-weight:800;background:#e4b63e;color:#111;cursor:pointer;font-size:14px}
+    button:hover{filter:brightness(1.06)}
+    button:disabled{cursor:not-allowed;opacity:.55}
+    button.secondary{background:#263d55;color:#fff}
+    button.danger{background:#873f44;color:#fff}
+    input{width:100%;border:1px solid #36536f;border-radius:10px;background:#091522;color:#fff;padding:10px;font-size:16px}
+    input:focus{outline:2px solid #e4b63e;outline-offset:1px}
+    label{display:block;font-size:13px;color:#b9c7d4;margin-bottom:4px}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .adminrow{display:grid;grid-template-columns:1.4fr 1fr;gap:8px;margin:9px 0}
+    .success{color:#b5e7bf}.error{color:#ffb6b6}
+    .testBanner{background:#4c3c13;border:1px solid #9a7925;padding:10px;border-radius:12px;text-align:center;font-weight:850;margin-top:12px;color:#f2d782}
+    .rule{height:1px;background:#29445f;margin:14px 0}
+    .statusline{font-size:14px;margin-top:8px}
+    .countdown{font-variant-numeric:tabular-nums}
+    .flash{animation:pop .45s ease-out}
+    @keyframes pop{0%{transform:scale(.82);opacity:.2}70%{transform:scale(1.06)}100%{transform:scale(1);opacity:1}}
+    @media(max-width:600px){.grid,.adminrow{grid-template-columns:1fr}main{padding:14px 12px 44px}.card{padding:15px}}
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <span class="badge gold">LIVE DRAFT LOTTERY</span>
+    <h1 id="title">Fantasy Draft Lottery</h1>
+    <div class="muted">One draw. One result. The commissioner learns it with everyone else.</div>
+  </header>
+
+  <section id="status" class="card"><strong>Loading lottery...</strong></section>
+
+  <section id="live" class="card hidden" aria-live="polite">
+    <div id="liveLabel" class="muted" style="text-align:center"></div>
+    <div id="liveNum" class="hero countdown"></div>
+    <div id="liveTeam" class="heroTeam"></div>
+  </section>
+
+  <section class="card">
+    <div class="row"><h2>Teams</h2><span id="count" class="badge"></span></div>
+    <div id="teams" class="teams"></div>
+  </section>
+
+  <section id="resultsCard" class="card hidden">
+    <h2>Draft order</h2>
+    <div id="results"></div>
+    <div class="rule"></div>
+    <div id="verify" class="muted"></div>
+  </section>
+
+  <section class="card">
+    <div class="row">
+      <div><strong>Commissioner controls</strong><div class="muted">Editable only until commissioner lock.</div></div>
+      <button id="toggle" class="secondary" type="button">Open</button>
+    </div>
+
+    <div id="admin" class="hidden">
+      <div style="margin-top:14px">
+        <label for="secret">Commissioner passcode</label>
+        <input id="secret" type="password" autocomplete="off" placeholder="Enter passcode">
+      </div>
+
+      <div class="grid" style="margin-top:10px">
+        <div><label for="scheduled">Official lottery time</label><input id="scheduled" type="datetime-local"></div>
+        <div><label for="deadline">Commissioner lock deadline</label><input id="deadline" type="datetime-local"></div>
+      </div>
+
+      <div id="editor"></div>
+
+      <div class="row" style="margin-top:12px">
+        <button id="load" class="secondary" type="button">Load / Edit</button>
+        <button id="save" type="button">Save setup</button>
+        <button id="testBtn" class="secondary" type="button">Run test lottery</button>
+        <button id="lockBtn" class="danger" type="button">Lock commissioner</button>
+      </div>
+      <div id="msg" class="muted statusline"></div>
+
+      <div id="testArea" class="hidden">
+        <div class="testBanner">TEST LOTTERY — OFFICIAL DRAW UNCHANGED</div>
+        <div class="card">
+          <div id="testLabel" class="muted" style="text-align:center"></div>
+          <div id="testNum" class="hero"></div>
+          <div id="testTeam" class="heroTeam"></div>
+        </div>
+        <div id="testResults"></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+(function(){
+  'use strict';
+  var BACKEND='https://ywckkrfbmxxuhhxjbciv.supabase.co/functions/v1/draft-lottery-room';
+  var state=null, adminState=null, testBusy=false;
+  function el(id){return document.getElementById(id)}
+  function esc(v){return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+  function fmt(v){return v?new Date(v).toLocaleString():''}
+  async function api(action,body,admin){
+    var opts={method:body?'POST':'GET',headers:{'content-type':'application/json'}};
+    if(admin)opts.headers['x-commissioner-key']=el('secret').value;
+    if(body)opts.body=JSON.stringify(body);
+    var r=await fetch(BACKEND+'?api='+encodeURIComponent(action),opts);
+    var text=await r.text();
+    var data;
+    try{data=JSON.parse(text)}catch(_){throw new Error('Backend returned an unexpected response.')}
+    if(!r.ok)throw new Error(data.error||'Request failed');
+    return data;
+  }
+  function render(s){
+    state=s;
+    var L=s.lottery;
+    el('title').textContent=L.league_name;
+    el('count').textContent=s.participants.length+' teams';
+    el('teams').innerHTML=s.participants.map(function(p){return '<div class="team">'+esc(p.team_name)+'</div>'}).join('');
+    var html='<div class="row"><div><strong>'+esc(L.status.toUpperCase())+'</strong><div class="muted">'+(L.scheduled_at?'Official lottery: '+esc(fmt(L.scheduled_at)):'Official time not scheduled yet')+'</div></div><span class="badge">'+(L.commissioner_locked_at?'Commissioner locked':'Setup open')+'</span></div>';
+    if(L.lock_deadline_at&&!L.commissioner_locked_at)html+='<div class="muted" style="margin-top:10px">Commissioner lock deadline: '+esc(fmt(L.lock_deadline_at))+'</div>';
+    el('status').innerHTML=html;
+    renderLive(s);
+    renderResults(s);
+  }
+  function renderLive(s){
+    var L=s.lottery;
+    if(!L.scheduled_at||!L.commissioner_locked_at){el('live').classList.add('hidden');return}
+    el('live').classList.remove('hidden');
+    var now=new Date(s.serverNow).getTime(), start=new Date(L.scheduled_at).getTime(), res=s.results.slice();
+    if(now<start){
+      el('liveLabel').textContent='LOTTERY STARTS IN';
+      var total=Math.max(0,Math.ceil((start-now)/1000));
+      var h=Math.floor(total/3600), m=Math.floor((total%3600)/60), sec=total%60;
+      el('liveNum').textContent=(h?h+'h ':'')+(m||h?m+'m ':'')+sec+'s';
+      el('liveTeam').textContent='';
+      return;
+    }
+    if(!s.officialRun||!res.length){
+      el('liveLabel').textContent='LOTTERY LOCKED — PREPARING DRAW';
+      el('liveNum').textContent='10';
+      el('liveTeam').textContent='🏈  🏈  🏈';
+      return;
+    }
+    if(res.length<s.participants.length){
+      res.sort(function(a,b){return new Date(b.revealed_at)-new Date(a.revealed_at)});
+      el('liveLabel').textContent='JUST REVEALED';
+      el('liveNum').textContent='#'+res[0].pick_number;
+      el('liveTeam').textContent=res[0].team_name;
+      return;
+    }
+    var first=res.find(function(r){return r.pick_number===1});
+    el('liveLabel').textContent='LOTTERY COMPLETE';
+    el('liveNum').textContent='🏆';
+    el('liveTeam').textContent=first?first.team_name:'';
+  }
+  function renderResults(s){
+    if(!s.results.length){el('resultsCard').classList.add('hidden');return}
+    el('resultsCard').classList.remove('hidden');
+    var a=s.results.slice().sort(function(x,y){return x.pick_number-y.pick_number});
+    el('results').innerHTML=a.map(function(r){return '<div class="pick"><div class="num">'+r.pick_number+'</div><div><strong>'+esc(r.team_name)+'</strong><div class="muted">Revealed '+esc(fmt(r.revealed_at))+'</div></div></div>'}).join('');
+    el('verify').textContent=s.officialRun?(s.officialRun.seed_revealed?'Verification seed: '+s.officialRun.seed_revealed:'Randomization commitment: '+s.officialRun.seed_commitment):'';
+  }
+  async function refresh(){
+    try{render(await api('state',null,false))}
+    catch(e){el('status').innerHTML='<div class="error">Unable to load lottery: '+esc(e.message)+'</div>'}
+  }
+  el('toggle').addEventListener('click',function(){el('admin').classList.toggle('hidden')});
+  el('load').addEventListener('click',async function(){
+    try{
+      adminState=await api('admin-state',null,true);
+      var contacts={};(adminState.contacts||[]).forEach(function(c){contacts[c.participant_id]=c});
+      el('editor').innerHTML='<h3>Teams & mobile numbers</h3>'+adminState.participants.map(function(p,i){var c=contacts[p.id]||{};return '<div class="adminrow"><div><label>Team '+(i+1)+'</label><input data-team="'+p.id+'" value="'+esc(p.team_name)+'"></div><div><label>Phone</label><input data-phone="'+p.id+'" inputmode="tel" value="'+esc(c.phone_e164||'')+'" placeholder="+13035551212"></div></div>'}).join('');
+      if(adminState.lottery.scheduled_at)el('scheduled').value=new Date(adminState.lottery.scheduled_at).toISOString().slice(0,16);
+      if(adminState.lottery.lock_deadline_at)el('deadline').value=new Date(adminState.lottery.lock_deadline_at).toISOString().slice(0,16);
+      el('msg').className='success statusline';el('msg').textContent='Commissioner access verified.';
+    }catch(e){el('msg').className='error statusline';el('msg').textContent=e.message}
+  });
+  el('save').addEventListener('click',async function(){
+    if(!adminState){el('msg').textContent='Use Load / Edit first.';return}
+    try{
+      var parts=adminState.participants.map(function(p){return{id:p.id,name:document.querySelector('[data-team="'+p.id+'"]').value,phone:document.querySelector('[data-phone="'+p.id+'"]').value}});
+      await api('save',{participants:parts,scheduledAt:el('scheduled').value?new Date(el('scheduled').value).toISOString():null,lockDeadlineAt:el('deadline').value?new Date(el('deadline').value).toISOString():null},true);
+      el('msg').className='success statusline';el('msg').textContent='Setup saved.';await refresh();
+    }catch(e){el('msg').className='error statusline';el('msg').textContent=e.message}
+  });
+  async function animate(order){
+    testBusy=true;el('testArea').classList.remove('hidden');el('testResults').innerHTML='';
+    for(var p=order.length;p>=1;p--){
+      var r=order.find(function(x){return x.pick_number===p});
+      el('testLabel').textContent='TEST PICK';el('testNum').textContent='#'+p;el('testTeam').textContent='🏈  🏈  🏈';el('testTeam').className='heroTeam';
+      await new Promise(function(ok){setTimeout(ok,700)});
+      el('testTeam').textContent=r.team_name;el('testTeam').className='heroTeam flash';
+      var d=document.createElement('div');d.className='pick';d.innerHTML='<div class="num">'+p+'</div><strong>'+esc(r.team_name)+'</strong>';el('testResults').prepend(d);
+      await new Promise(function(ok){setTimeout(ok,850)});
+    }
+    el('testLabel').textContent='TEST COMPLETE';el('testNum').textContent='✓';testBusy=false;
+  }
+  el('testBtn').addEventListener('click',async function(){
+    if(testBusy)return;
+    try{el('msg').className='muted statusline';el('msg').textContent='Generating test lottery...';var r=await api('test',{},true);await animate(r.order);el('msg').className='success statusline';el('msg').textContent='Test complete. Official lottery unchanged.'}
+    catch(e){testBusy=false;el('msg').className='error statusline';el('msg').textContent=e.message}
+  });
+  el('lockBtn').addEventListener('click',async function(){
+    if(!confirm('Lock commissioner settings now? This cannot be undone for the official lottery.'))return;
+    try{await api('lock',{},true);el('msg').className='success statusline';el('msg').textContent='Commissioner locked.';await refresh()}
+    catch(e){el('msg').className='error statusline';el('msg').textContent=e.message}
+  });
+  refresh();
+  setInterval(refresh,1000);
+})();
+</script>
+</body>
+</html>
